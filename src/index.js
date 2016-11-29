@@ -2,6 +2,17 @@ const Initializer = require('./initializer')
 const ReadyQueueConsumer = require('./ready_queue_consumer')
 const amqpHandlerWrapper = require('./amqp_handler_wrapper')
 
+const readyQueuePromises = { };
+
+const startReadyQueueConsumer = (channel) => {
+  if (!readyQueuePromises[channel]) {
+    const consumer = new ReadyQueueConsumer(channel);
+    readyQueuePromises[channel] = consumer.start();
+  }
+
+  return readyQueuePromises[channel];
+}
+
 module.exports = (options) => {
   // validate options
   if (!options.channel) {
@@ -21,13 +32,12 @@ module.exports = (options) => {
 
   // initializing the objects
   const initializer = new Initializer(options.channel, options.consumerQueue, options.failureQueue)
-  const consumer = new ReadyQueueConsumer(options.channel)
   const wrapper = amqpHandlerWrapper(options.channel, options.consumerQueue, options.failureQueue, options.handler, options.delay, initializer)
 
   // initializing the queues, exchange and binding. Then starting the consumer
   initializer
     .initialize()
-    .then(() => consumer.start())
+    .then(() => startReadyQueueConsumer(options.channel))
 
   // returning wrapper for given amqp handler function.
   return wrapper
