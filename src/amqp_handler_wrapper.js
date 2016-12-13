@@ -13,7 +13,7 @@ const getDefaultDelay = (attempts) => {
 }
 
 module.exports = function (channel, clientQueueName, failureQueueName, clientHandler, delayFunction, initializer) {
-  const errorHandler = (msg) => {
+  const errorHandler = (msg, err) => {
     if (!initializer.isInitialized) {
       // Delay in 1 MS to let the queues/exchange/bindings initialize
       return Promise
@@ -25,6 +25,7 @@ module.exports = function (channel, clientQueueName, failureQueueName, clientHan
     _.defaults(msg.properties, { headers: {} })
     _.defaults(msg.properties.headers, { _retryCount: 0 }) // _retryCount: 0 means this message has never been retried before.
 
+    msg.properties.headers._retryLastError = err.message
     msg.properties.headers._retryCount += 1
     const expiration = (delayFunction || getDefaultDelay)(msg.properties.headers._retryCount)
 
@@ -55,7 +56,7 @@ module.exports = function (channel, clientQueueName, failureQueueName, clientHan
         // Adding the string 'error' to support papertrail error filters.
         console.error('Error: AMQP retry handler caught the following error: ', err)
         return Promise
-          .try(() => errorHandler(msg))
+          .try(() => errorHandler(msg, err))
           .catch((err) => {
             // Something went wrong while trying to process the erroneous message.
             // Sending nack so the client can try to process it again.
