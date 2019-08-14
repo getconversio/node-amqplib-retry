@@ -25,7 +25,7 @@ module.exports = function (channel, clientQueueName, failureQueueName, clientHan
     _.defaults(msg.properties, { headers: {} })
     _.defaults(msg.properties.headers, { _retryCount: 0 }) // _retryCount: 0 means this message has never been retried before.
 
-    msg.properties.headers._retryLastError = err && err.message
+    msg.properties.headers._retryLastError = String(err && err.message).substring(0, 255)
     msg.properties.headers._retryCount += 1
     const expiration = (delayFunction || getDefaultDelay)(msg.properties.headers._retryCount)
 
